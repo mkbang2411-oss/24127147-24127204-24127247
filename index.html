@@ -154,6 +154,21 @@
       body.fullscreen.idle {
         cursor: none;
       }
+      /* Toàn màn hình: slide che hết nền kính nên đổi sang chữ tối trên thanh kính sáng */
+      body.fullscreen #bar {
+        background: rgba(255, 255, 255, 0.72);
+        border-color: rgba(0, 0, 0, 0.12);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+      }
+      body.fullscreen #bar button {
+        color: #3a0d14;
+      }
+      body.fullscreen #bar button:hover {
+        background: rgba(58, 13, 20, 0.12);
+      }
+      body.fullscreen #counter {
+        color: #5a2a33;
+      }
       button {
         all: unset;
         cursor: pointer;
