@@ -7,9 +7,8 @@
     <style>
       :root {
         --text: #fff;
-        --muted: rgba(255, 255, 255, 0.7);
-        --glass: rgba(255, 255, 255, 0.14);
-        --glass-strong: rgba(255, 255, 255, 0.22);
+        --muted: rgba(255, 255, 255, 0.75);
+        --glass: rgba(255, 255, 255, 0.16);
         --glass-border: rgba(255, 255, 255, 0.35);
         --accent: #ffd36e;
         --fp: 12px; /* viền kính quanh slide */
@@ -33,7 +32,7 @@
         background: #3a0d14;
       }
 
-      /* ===== Nền kính: màu ánh theo từng slide ===== */
+      /* ===== Nền kính: màu lấy theo slide đang chiếu (vẽ 1 lần mỗi slide, không animate) ===== */
       #ambient {
         position: fixed;
         inset: 0;
@@ -51,21 +50,20 @@
         width: 116%;
         height: 116%;
         object-fit: cover;
-        filter: blur(48px) saturate(1.5) brightness(0.95);
-        opacity: 0;
-        transition: opacity 0.5s ease;
+        filter: blur(40px) saturate(1.4);
+        display: none;
       }
       #ambient canvas.on {
-        opacity: 1;
+        display: block;
       }
       #ambient::after {
         content: "";
         position: absolute;
         inset: 0;
-        background: rgba(20, 8, 16, 0.18);
+        background: rgba(20, 8, 16, 0.2);
       }
 
-      /* ===== Slide trong khung kính ===== */
+      /* ===== Slide trong khung kính (không dùng backdrop-filter để khỏi lag) ===== */
       #stage {
         position: fixed;
         inset: 0 0 84px 0;
@@ -84,10 +82,8 @@
         border-radius: 22px;
         background: var(--glass);
         border: 1px solid var(--glass-border);
-        backdrop-filter: blur(18px);
-        -webkit-backdrop-filter: blur(18px);
         box-shadow:
-          0 24px 70px rgba(0, 0, 0, 0.35),
+          0 20px 50px rgba(0, 0, 0, 0.3),
           inset 0 1px 0 rgba(255, 255, 255, 0.45);
         display: flex;
       }
@@ -97,19 +93,21 @@
         border-radius: 0;
         background: none;
         box-shadow: none;
-        backdrop-filter: none;
       }
       canvas#canvas {
         display: block;
         border-radius: 12px;
         background: #fff;
-        transition: opacity 0.25s ease;
       }
       body.fullscreen canvas#canvas {
         border-radius: 0;
       }
-      canvas#canvas.loading {
-        opacity: 0.5;
+
+      /* Chưa tải xong thì ẩn khung slide trắng và thanh điều khiển */
+      body:not(.ready) #stage,
+      body:not(.ready) #bar,
+      body:not(.ready) #progress {
+        visibility: hidden;
       }
 
       /* ===== Thanh tiến độ ===== */
@@ -125,7 +123,7 @@
         transition: width 0.35s ease;
       }
 
-      /* ===== Thanh điều khiển kính ===== */
+      /* ===== Thanh điều khiển ===== */
       #bar {
         position: fixed;
         left: 50%;
@@ -137,12 +135,12 @@
         gap: 6px;
         padding: 7px 12px;
         border-radius: 999px;
-        background: var(--glass);
+        background: rgba(255, 255, 255, 0.2);
         border: 1px solid var(--glass-border);
-        backdrop-filter: blur(20px) saturate(1.4);
-        -webkit-backdrop-filter: blur(20px) saturate(1.4);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
         box-shadow:
-          0 10px 30px rgba(0, 0, 0, 0.28),
+          0 8px 24px rgba(0, 0, 0, 0.25),
           inset 0 1px 0 rgba(255, 255, 255, 0.45);
         transition:
           opacity 0.3s,
@@ -171,7 +169,7 @@
           transform 0.15s;
       }
       button:hover {
-        background: var(--glass-strong);
+        background: rgba(255, 255, 255, 0.22);
       }
       button:active {
         transform: scale(0.92);
@@ -181,13 +179,12 @@
         text-align: center;
         font-size: 14px;
         font-weight: 500;
-        letter-spacing: 0.02em;
         color: var(--muted);
         font-variant-numeric: tabular-nums;
       }
 
-      /* ===== Màn hình chọn file ===== */
-      #drop {
+      /* ===== Màn hình chờ ===== */
+      #loader {
         position: fixed;
         inset: 0;
         z-index: 10;
@@ -195,56 +192,94 @@
         place-items: center;
         padding: 24px;
       }
-      #drop.hidden {
+      #loader.hidden {
         display: none;
       }
-      #drop .card {
+      #loader .card {
+        width: min(420px, 100%);
         text-align: center;
-        padding: 44px 52px;
+        padding: 44px 40px 40px;
         border-radius: 28px;
-        max-width: 460px;
         background: var(--glass);
         border: 1px solid var(--glass-border);
-        backdrop-filter: blur(24px);
-        -webkit-backdrop-filter: blur(24px);
         box-shadow:
           0 30px 80px rgba(0, 0, 0, 0.35),
           inset 0 1px 0 rgba(255, 255, 255, 0.45);
       }
-      #drop h1 {
-        font-size: 26px;
+      .spinner {
+        width: 46px;
+        height: 46px;
+        margin: 0 auto 22px;
+        border-radius: 50%;
+        border: 4px solid rgba(255, 255, 255, 0.25);
+        border-top-color: var(--accent);
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      #loader h1 {
+        font-size: 22px;
         font-weight: 600;
         margin-bottom: 8px;
       }
-      #drop p {
+      #loader p {
         color: var(--muted);
-        font-size: 15px;
+        font-size: 14px;
+        line-height: 1.5;
       }
-      #drop .hint {
+      .meter {
+        height: 6px;
+        margin: 24px 0 10px;
+        border-radius: 99px;
+        background: rgba(255, 255, 255, 0.2);
+        overflow: hidden;
+      }
+      .meter i {
+        display: block;
+        height: 100%;
+        width: 0;
+        border-radius: 99px;
+        background: linear-gradient(90deg, #ffd36e, #ff7a59);
+      }
+      .meter.indeterminate i {
+        width: 40%;
+        animation: slide 1.3s ease-in-out infinite;
+      }
+      @keyframes slide {
+        0% {
+          transform: translateX(-110%);
+        }
+        100% {
+          transform: translateX(280%);
+        }
+      }
+      #pct {
+        font-variant-numeric: tabular-nums;
         font-size: 13px;
-        margin-top: 18px;
+        color: var(--muted);
+        min-height: 18px;
       }
-      #drop label {
-        display: inline-block;
-        margin-top: 22px;
-        padding: 12px 28px;
+      #loader.error .spinner,
+      #loader.error .meter {
+        display: none;
+      }
+      #retry {
+        display: none;
+        width: auto;
+        height: auto;
+        margin: 20px auto 0;
+        padding: 11px 26px;
         border-radius: 999px;
-        cursor: pointer;
+        font-size: 15px;
         font-weight: 600;
         color: #3a0d14;
         background: linear-gradient(135deg, #ffe08a, #ffa86b);
-        box-shadow: 0 6px 18px rgba(255, 150, 80, 0.4);
-        transition: transform 0.15s;
       }
-      #drop label:hover {
-        transform: translateY(-1px);
-      }
-      #drop input {
-        display: none;
-      }
-      body.dragover #drop .card {
-        outline: 2px dashed var(--accent);
-        outline-offset: 8px;
+      #loader.error #retry {
+        display: inline-block;
       }
     </style>
   </head>
@@ -252,14 +287,16 @@
     <div id="ambient"><canvas id="bg"></canvas></div>
     <div id="progress"></div>
 
-    <div id="drop">
+    <div id="loader">
       <div class="card">
-        <h1>Trình chiếu slide PDF</h1>
-        <p>Kéo thả file PDF vào đây hoặc bấm nút bên dưới</p>
-        <label
-          >Chọn file PDF<input type="file" id="file" accept="application/pdf"
-        /></label>
-        <p class="hint">← → hoặc Space để chuyển slide · F để toàn màn hình</p>
+        <div class="spinner"></div>
+        <h1 id="title">Đang tải slide…</h1>
+        <p id="sub">
+          File hơi nặng nên cần chờ một chút, bạn đừng tắt trang nhé.
+        </p>
+        <div class="meter indeterminate" id="meter"><i id="fill"></i></div>
+        <div id="pct"></div>
+        <button id="retry">Tải lại</button>
       </div>
     </div>
 
@@ -276,9 +313,7 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>
-      // ====== CẤU HÌNH ======
-      const DEFAULT_PDF = "slides.pdf"; // để "" nếu muốn luôn hiện màn hình chọn file
-      // ======================
+      const PDF_FILE = "slides.pdf";
 
       pdfjsLib.GlobalWorkerOptions.workerSrc =
         "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
@@ -288,28 +323,64 @@
         ctx = canvas.getContext("2d");
       const bg = $("bg"),
         bgctx = bg.getContext("2d");
+      const mid = document.createElement("canvas"); // trung gian để thu nhỏ mượt cho nền
+
       let pdf = null,
+        base = null,
         page = 1,
-        renderTask = null,
-        pending = null;
+        token = 0,
+        curKey = "";
+      const cache = new Map(); // trang -> canvas đã vẽ sẵn
+      const inflight = new Map(); // trang -> promise đang vẽ
 
-      async function openPdf(source) {
-        pdf = await pdfjsLib.getDocument(source).promise;
-        page = 1;
-        $("drop").classList.add("hidden");
-        render();
+      // ---------- Tải PDF ----------
+      function loadPdf() {
+        const loader = $("loader");
+        loader.classList.remove("hidden", "error");
+        $("title").textContent = "Đang tải slide…";
+        $("sub").textContent =
+          "File hơi nặng nên cần chờ một chút, bạn đừng tắt trang nhé.";
+        $("meter").classList.add("indeterminate");
+        $("fill").style.width = "0";
+        $("pct").textContent = "";
+
+        const task = pdfjsLib.getDocument({ url: PDF_FILE });
+        task.onProgress = ({ loaded, total }) => {
+          if (!total) {
+            $("pct").textContent = (loaded / 1048576).toFixed(1) + " MB";
+            return;
+          }
+          const p = Math.min(100, Math.round((loaded / total) * 100));
+          $("meter").classList.remove("indeterminate");
+          $("fill").style.width = p + "%";
+          $("pct").textContent =
+            p +
+            "%  ·  " +
+            (loaded / 1048576).toFixed(1) +
+            " / " +
+            (total / 1048576).toFixed(1) +
+            " MB";
+        };
+
+        task.promise
+          .then(async (doc) => {
+            pdf = doc;
+            base = (await pdf.getPage(1)).getViewport({ scale: 1 });
+            await show(1);
+            document.body.classList.add("ready");
+            loader.classList.add("hidden");
+          })
+          .catch((err) => {
+            loader.classList.add("error");
+            $("title").textContent = "Chưa tải được slide";
+            $("sub").textContent = "Bạn kiểm tra mạng rồi bấm “Tải lại” nhé.";
+            $("pct").textContent = err && err.message ? err.message : "";
+          });
       }
+      $("retry").onclick = loadPdf;
 
-      async function render() {
-        if (!pdf) return;
-        if (renderTask) {
-          pending = page;
-          renderTask.cancel();
-          return;
-        }
-        canvas.classList.add("loading");
-        const pg = await pdf.getPage(page);
-        const base = pg.getViewport({ scale: 1 });
+      // ---------- Vẽ trước các slide để chuyển trang tức thì ----------
+      function computeSize() {
         const stage = $("stage"),
           cs = getComputedStyle(stage);
         const fp = parseFloat(getComputedStyle($("frame")).paddingLeft) || 0;
@@ -320,36 +391,69 @@
           parseFloat(cs.paddingBottom) -
           fp * 2;
         const scale = Math.min(w / base.width, h / base.height);
-        const dpr = window.devicePixelRatio || 1;
-        const vp = pg.getViewport({ scale: scale * dpr });
-        canvas.width = vp.width;
-        canvas.height = vp.height;
-        canvas.style.width = vp.width / dpr + "px";
-        canvas.style.height = vp.height / dpr + "px";
-        renderTask = pg.render({ canvasContext: ctx, viewport: vp });
-        try {
-          await renderTask.promise;
-          paintAmbient();
-        } catch (e) {
-          /* bị hủy do đổi trang nhanh */
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const cssW = Math.floor(base.width * scale),
+          cssH = Math.floor(base.height * scale);
+        return { scale, dpr, cssW, cssH, key: cssW + "x" + cssH + "@" + dpr };
+      }
+
+      function getBitmap(n, size) {
+        if (cache.has(n)) return Promise.resolve(cache.get(n));
+        if (inflight.has(n)) return inflight.get(n);
+        const p = (async () => {
+          const pg = await pdf.getPage(n);
+          const vp = pg.getViewport({ scale: size.scale * size.dpr });
+          const c = document.createElement("canvas");
+          c.width = Math.round(vp.width);
+          c.height = Math.round(vp.height);
+          await pg.render({ canvasContext: c.getContext("2d"), viewport: vp })
+            .promise;
+          if (size.key === curKey) cache.set(n, c);
+          inflight.delete(n);
+          return c;
+        })();
+        inflight.set(n, p);
+        return p;
+      }
+
+      async function show(n) {
+        const my = ++token;
+        page = n;
+        const size = computeSize();
+        if (size.key !== curKey) {
+          curKey = size.key;
+          cache.clear();
+          inflight.clear();
         }
-        renderTask = null;
-        canvas.classList.remove("loading");
+        const c = await getBitmap(n, size);
+        if (my !== token) return;
+        canvas.width = c.width;
+        canvas.height = c.height;
+        canvas.style.width = size.cssW + "px";
+        canvas.style.height = size.cssH + "px";
+        ctx.drawImage(c, 0, 0);
+        paintAmbient();
         updateUI();
-        if (pending !== null) {
-          pending = null;
-          render();
+        prefetch(n, size);
+      }
+
+      async function prefetch(n, size) {
+        for (const k of cache.keys()) if (Math.abs(k - n) > 3) cache.delete(k);
+        for (const k of [n + 1, n + 2, n - 1]) {
+          if (k < 1 || k > pdf.numPages || size.key !== curKey) continue;
+          await getBitmap(k, size);
         }
       }
 
-      // Lấy màu của slide hiện tại làm nền kính mờ phía sau
+      // Nền kính: thu nhỏ 2 bước rồi để CSS làm mờ
       function paintAmbient() {
-        bg.width = 64;
-        bg.height = Math.max(
-          1,
-          Math.round((64 * canvas.height) / canvas.width),
-        );
-        bgctx.drawImage(canvas, 0, 0, bg.width, bg.height);
+        const r = canvas.height / canvas.width;
+        mid.width = 192;
+        mid.height = Math.max(1, Math.round(192 * r));
+        mid.getContext("2d").drawImage(canvas, 0, 0, mid.width, mid.height);
+        bg.width = 32;
+        bg.height = Math.max(1, Math.round(32 * r));
+        bgctx.drawImage(mid, 0, 0, bg.width, bg.height);
         bg.classList.add("on");
       }
 
@@ -361,13 +465,10 @@
       function go(n) {
         if (!pdf) return;
         const t = Math.max(1, Math.min(pdf.numPages, n));
-        if (t !== page) {
-          page = t;
-          render();
-        }
+        if (t !== page) show(t);
       }
 
-      // Điều khiển
+      // ---------- Điều khiển ----------
       $("prev").onclick = () => go(page - 1);
       $("next").onclick = () => go(page + 1);
       $("full").onclick = toggleFull;
@@ -381,7 +482,7 @@
           "fullscreen",
           !!document.fullscreenElement,
         );
-        render();
+        if (pdf) show(page);
       });
 
       document.addEventListener("keydown", (e) => {
@@ -400,12 +501,10 @@
         else if (e.key.toLowerCase() === "f") toggleFull();
       });
 
-      // Bấm nửa trái/phải màn hình để chuyển slide
       $("stage").addEventListener("click", (e) =>
         go(e.clientX < innerWidth / 2 ? page - 1 : page + 1),
       );
 
-      // Vuốt trên điện thoại
       let tx = 0;
       $("stage").addEventListener(
         "touchstart",
@@ -417,7 +516,6 @@
         if (Math.abs(dx) > 50) go(page + (dx < 0 ? 1 : -1));
       });
 
-      // Tự ẩn thanh điều khiển khi toàn màn hình
       let idleTimer;
       document.addEventListener("mousemove", () => {
         document.body.classList.remove("idle");
@@ -425,36 +523,13 @@
         idleTimer = setTimeout(() => document.body.classList.add("idle"), 2500);
       });
 
-      // Chọn file / kéo thả
-      const loadFile = (f) => {
-        if (f && f.type === "application/pdf")
-          f.arrayBuffer().then((b) => openPdf({ data: b }));
-      };
-      $("file").onchange = (e) => loadFile(e.target.files[0]);
-      ["dragenter", "dragover"].forEach((ev) =>
-        document.addEventListener(ev, (e) => {
-          e.preventDefault();
-          document.body.classList.add("dragover");
-        }),
-      );
-      ["dragleave", "drop"].forEach((ev) =>
-        document.addEventListener(ev, (e) => {
-          e.preventDefault();
-          document.body.classList.remove("dragover");
-        }),
-      );
-      document.addEventListener("drop", (e) =>
-        loadFile(e.dataTransfer.files[0]),
-      );
-
-      // Vẽ lại khi đổi kích thước cửa sổ
       let rt;
       addEventListener("resize", () => {
         clearTimeout(rt);
-        rt = setTimeout(render, 150);
+        rt = setTimeout(() => pdf && show(page), 200);
       });
 
-      if (DEFAULT_PDF) openPdf(DEFAULT_PDF).catch(() => {});
+      loadPdf();
     </script>
   </body>
 </html>
